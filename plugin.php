@@ -8,7 +8,7 @@
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: ai-connector-openrouter-wordpress
- * Version:     0.1.260329
+ * Version:     0.2.260329
  * Requires PHP: 7.4
  */
 
