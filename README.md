@@ -6,6 +6,11 @@ OpenRouter Connector for WordPress adds an AI provider connector via the WordPre
 
 ## WordPress AI API — Documentation
 
+### WP Plugin and PHP AI Client SDK
+- [WordPress AI plugin](https://github.com/WordPress/ai) — the official AI plugin, built on top of the PHP SDK; primary consumer of provider connectors; source of truth for AI features and experiments in WP Admin
+- [wordpress/php-ai-client on GitHub](https://github.com/WordPress/php-ai-client) — provider-agnostic PHP SDK bundled in WP 7.0 core; `AiClient`, `PromptBuilder`, provider registry
+- [wp-ai-client WordPress plugin (deprecated in 7.0+)](https://github.com/WordPress/wp-ai-client) — the predecessor plugin; REST API endpoints and JS API still active
+
 ### Core Announcements (WordPress 7.0)
 
 - [Introducing the AI Client in WordPress 7.0](https://make.wordpress.org/core/2026/03/24/introducing-the-ai-client-in-wordpress-7-0/) — `wp_ai_client_prompt()`, builder methods, feature detection, REST integration
@@ -13,10 +18,6 @@ OpenRouter Connector for WordPress adds an AI provider connector via the WordPre
 - [WordPress 7.0 Beta 1 announcement](https://wordpress.org/news/2026/02/wordpress-7-0-beta-1/) — overview of all new features
 - [WordPress 7.0 Developer Notes (all)](https://make.wordpress.org/core/tag/dev-notes+7-0/) — full list of dev notes for the release
 
-### PHP AI Client SDK
-
-- [wordpress/php-ai-client on GitHub](https://github.com/WordPress/php-ai-client) — provider-agnostic PHP SDK bundled in WP 7.0 core; `AiClient`, `PromptBuilder`, provider registry
-- [wp-ai-client WordPress plugin (deprecated in 7.0+)](https://github.com/WordPress/wp-ai-client) — the predecessor plugin; REST API endpoints and JS API still active
 
 ### Official Provider Plugin Examples
 
@@ -29,11 +30,6 @@ OpenRouter Connector for WordPress adds an AI provider connector via the WordPre
 - [OpenRouter models list](https://openrouter.ai/models) — all available models with IDs (format: `provider/model`)
 - [OpenRouter API keys](https://openrouter.ai/keys) — create and manage API keys
 
-### wp-env (Local Development)
-
-- [Get started with wp-env](https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-wp-env/) — official quick-start guide
-- [@wordpress/env package reference](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) — full command reference, `.wp-env.json` schema
-- [Quick and easy local WordPress development with wp-env](https://developer.wordpress.org/news/2023/03/quick-and-easy-local-wordpress-development-with-wp-env/) — WordPress Developer Blog overview
 
 ---
 
@@ -83,4 +79,6 @@ wp-env start --runtime=playground --update
 
 - Debug log is enabled — errors are written to `wp-content/debug.log` inside the environment.
 - If you need WP-CLI or Composer inside the container, switch to the Docker runtime (remove `--runtime=playground`). Docker Desktop must be running.
-
+- [Get started with wp-env](https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-wp-env/) — official quick-start guide
+- [@wordpress/env package reference](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) — full command reference, `.wp-env.json` schema
+- [Quick and easy local WordPress development with wp-env](https://developer.wordpress.org/news/2023/03/quick-and-easy-local-wordpress-development-with-wp-env/) — WordPress Developer Blog overview
