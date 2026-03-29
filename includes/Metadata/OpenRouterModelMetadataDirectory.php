@@ -93,8 +93,16 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
         return array_values(
             array_map(
                 static function (array $modelData) use ($textGenCapabilities, $textGenOptions): ModelMetadata {
+                    $modelName = '';
+                    if (!empty($modelData['name']) && is_string($modelData['name'])) {
+                        $modelName = $modelData['name'];
+                    } else {
+                        $modelName = (string) $modelData['id'];
+                    }
+
                     return new ModelMetadata(
                         $modelData['id'],
+                        $modelName,
                         $textGenCapabilities,
                         $textGenOptions
                     );

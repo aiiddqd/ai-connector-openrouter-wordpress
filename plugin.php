@@ -15,6 +15,9 @@
 
 namespace AIConnectorOpenRouter;
 
+use WordPress\AiClient\AiClient;
+use WordPress\OpenRouterAiProvider\Provider\OpenRouterProvider;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -35,13 +38,36 @@ final class Plugin {
 	}
 
 	public function run(): void {
-        //add autoload.php
-        require_once plugin_dir_path( __FILE__ ) . 'includes/autoload.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/autoload.php';
+		add_action( 'init', array( $this, 'register_provider' ), 1 );
 		add_action( 'wp_connectors_init', array( $this, 'register_connector' ) );
 	}
 
+	public function register_provider(): void {
+		if ( ! function_exists( 'wp_supports_ai' ) || ! wp_supports_ai() ) {
+			return;
+		}
+
+		if ( ! class_exists( AiClient::class ) || ! class_exists( OpenRouterProvider::class ) ) {
+			return;
+		}
+
+		try {
+			$registry = AiClient::defaultRegistry();
+
+			if ( ! $registry->hasProvider( 'openrouter' ) ) {
+				$registry->registerProvider( OpenRouterProvider::class );
+			}
+		} catch ( \Throwable $e ) {
+			wp_trigger_error(
+				__METHOD__,
+				sprintf( 'Failed to register OpenRouter provider: %s', $e->getMessage() )
+			);
+		}
+	}
+
 	public function register_connector( \WP_Connector_Registry $registry ): void {
-		$registry->register( 'openrouter', array(
+		$connector = array(
 			'name'        => 'OpenRouter',
 			'description' => 'Access 200+ AI models through a single unified API.',
 			'logo_url'    => plugin_dir_url( __FILE__ ) . 'assets/openrouter-icon.svg',
@@ -54,7 +80,17 @@ final class Plugin {
 			'plugin' => array(
 				'slug' => 'ai-connector-openrouter-wordpress',
 			),
-		) );
+		);
+
+		if ( $registry->is_registered( 'openrouter' ) ) {
+			$existing = $registry->unregister( 'openrouter' );
+
+			if ( is_array( $existing ) ) {
+				$connector = array_replace_recursive( $existing, $connector );
+			}
+		}
+
+		$registry->register( 'openrouter', $connector );
 	}
 }
 

@@ -16,6 +16,8 @@ use WordPress\AiClient\Results\DTO\GenerativeAiResult;
 use WordPress\AiClient\Results\DTO\TokenUsage;
 use WordPress\AiClient\Results\Enums\FinishReasonEnum;
 use WordPress\AiClient\Messages\DTO\Message;
+use WordPress\AiClient\Messages\DTO\MessagePart;
+use WordPress\AiClient\Messages\DTO\ModelMessage;
 use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
 use WordPress\OpenRouterAiProvider\Provider\OpenRouterProvider;
 
@@ -153,7 +155,7 @@ class OpenRouterTextGenerationModel extends AbstractApiBasedModel implements Tex
             $text = '';
 
             foreach ($message->getParts() as $part) {
-                if ($part->isText()) {
+                if ($part->getType()->isText()) {
                     $text .= $part->getText();
                 }
             }
@@ -183,25 +185,30 @@ class OpenRouterTextGenerationModel extends AbstractApiBasedModel implements Tex
         $candidates = [];
         foreach ($data['choices'] as $choice) {
             $content      = $choice['message']['content'] ?? '';
-            $finishReason = FinishReasonEnum::fromString($choice['finish_reason'] ?? 'stop');
+            $finishReason = FinishReasonEnum::tryFrom((string) ($choice['finish_reason'] ?? 'stop')) ?? FinishReasonEnum::stop();
+            $message      = new ModelMessage([new MessagePart((string) $content)]);
 
-            $candidates[] = new Candidate($content, $finishReason);
+            $candidates[] = new Candidate($message, $finishReason);
         }
 
-        $tokenUsage = null;
-        if (!empty($data['usage'])) {
-            $usage      = $data['usage'];
-            $tokenUsage = new TokenUsage(
-                $usage['prompt_tokens'] ?? 0,
-                $usage['completion_tokens'] ?? 0
-            );
-        }
+        $usage      = $data['usage'] ?? [];
+        $totalTokens = $usage['total_tokens'] ?? (($usage['prompt_tokens'] ?? 0) + ($usage['completion_tokens'] ?? 0));
+        $tokenUsage = new TokenUsage(
+            $usage['prompt_tokens'] ?? 0,
+            $usage['completion_tokens'] ?? 0,
+            $totalTokens
+        );
+
+        $resultId = is_string($data['id'] ?? null) && $data['id'] !== ''
+            ? $data['id']
+            : wp_generate_uuid4();
 
         return new GenerativeAiResult(
+            $resultId,
             $candidates,
-            $this->metadata()->getProviderMetadata(),
-            $this->metadata(),
-            $tokenUsage
+            $tokenUsage,
+            $this->providerMetadata(),
+            $this->metadata()
         );
     }
 }
