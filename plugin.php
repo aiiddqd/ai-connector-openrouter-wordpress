@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AI Connector for OpenRouter
  * Plugin URI:  https://github.com/aiiddqd/ai-connector-openrouter-wordpress
- * Description: Connects WordPress to the OpenRouter AI API.
+ * Description: AI Provider for OpenRouter for the WordPress AI Client.
  * Author:      aiiddqd
  * Author URI:  https://github.com/aiiddqd
  * License:     GPL-2.0-or-later
@@ -41,6 +41,7 @@ final class Plugin {
 		require_once plugin_dir_path( __FILE__ ) . 'includes/autoload.php';
 		add_action( 'init', array( $this, 'register_provider' ), 1 );
 		add_action( 'wp_connectors_init', array( $this, 'register_connector' ) );
+		add_filter( 'wpai_preferred_image_models', array( $this, 'register_image_model_preferences' ) );
 	}
 
 	public function register_provider(): void {
@@ -64,6 +65,45 @@ final class Plugin {
 				sprintf( 'Failed to register OpenRouter provider: %s', $e->getMessage() )
 			);
 		}
+	}
+
+	/**
+	 * Appends OpenRouter image models to the AI plugin preferred image model list.
+	 *
+	 * @since 0.1.260329
+	 *
+	 * @param array<int, array{string, string}> $models Preferred image models from the AI plugin.
+	 * @return array<int, array{string, string}> Updated preferred image models.
+	 */
+	public function register_image_model_preferences( array $models ): array {
+		$openrouter_models = array(
+			array(
+				'openrouter',
+				'google/gemini-3.1-flash-image-preview',
+			),
+			array(
+				'openrouter',
+				'google/gemini-3-pro-image-preview',
+			),
+			array(
+				'openrouter',
+				'openai/gpt-5-image-mini',
+			),
+			array(
+				'openrouter',
+				'openai/gpt-5-image',
+			),
+			array(
+				'openrouter',
+				'google/gemini-2.5-flash-image',
+			),
+			array(
+				'openrouter',
+				'openrouter/auto',
+			),
+		);
+
+		return array_merge( $models, $openrouter_models );
 	}
 
 	public function register_connector( \WP_Connector_Registry $registry ): void {

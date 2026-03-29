@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WordPress\OpenRouterAiProvider\Metadata;
 
+use WordPress\AiClient\Files\Enums\FileTypeEnum;
+use WordPress\AiClient\Files\Enums\MediaOrientationEnum;
 use WordPress\AiClient\Messages\Enums\ModalityEnum;
 use WordPress\AiClient\Providers\Http\DTO\Request;
 use WordPress\AiClient\Providers\Http\DTO\Response;
@@ -29,7 +31,16 @@ use WordPress\OpenRouterAiProvider\Provider\OpenRouterProvider;
  *
  * @since 0.1.0
  *
- * @phpstan-type ModelsResponseData array{data: list<array{id: string, context_length?: int}>}
+ * @phpstan-type OpenRouterModelData array{
+ *     id: string,
+ *     name?: string,
+ *     output_modalities?: list<string>,
+ *     architecture?: array{
+ *         output_modalities?: list<string>,
+ *         modality?: string
+ *     }
+ * }
+ * @phpstan-type ModelsResponseData array{data: list<OpenRouterModelData>}
  */
 class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMetadataDirectory
 {
@@ -55,8 +66,8 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
     /**
      * Parse the OpenRouter /models response into ModelMetadata objects.
      *
-     * All OpenRouter models are treated as text generation capable.
-     * This is a reasonable default — OpenRouter primarily routes LLM requests.
+     * Models with `output_modalities` containing "image" are registered as image
+     * generation capable. All other models are treated as text generation capable.
      *
      * @since 0.1.0
      *
@@ -90,9 +101,28 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
             new SupportedOption(OptionEnum::outputModalities(), [[ModalityEnum::text()]]),
         ];
 
+        $imageOptions = [
+            new SupportedOption(OptionEnum::inputModalities(), [[ModalityEnum::text()]]),
+            new SupportedOption(OptionEnum::outputModalities(), [
+                [ModalityEnum::image()],
+                [ModalityEnum::text(), ModalityEnum::image()],
+            ]),
+            new SupportedOption(OptionEnum::candidateCount()),
+            new SupportedOption(OptionEnum::customOptions()),
+            new SupportedOption(OptionEnum::outputFileType(), [FileTypeEnum::inline()]),
+            new SupportedOption(OptionEnum::outputMediaOrientation(), [
+                MediaOrientationEnum::square(),
+                MediaOrientationEnum::landscape(),
+                MediaOrientationEnum::portrait(),
+            ]),
+            new SupportedOption(OptionEnum::outputMediaAspectRatio(), [
+                '1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9',
+            ]),
+        ];
+
         return array_values(
             array_map(
-                static function (array $modelData) use ($textGenCapabilities, $textGenOptions): ModelMetadata {
+                static function (array $modelData) use ($textGenCapabilities, $textGenOptions, $imageOptions): ModelMetadata {
                     $modelName = '';
                     if (!empty($modelData['name']) && is_string($modelData['name'])) {
                         $modelName = $modelData['name'];
@@ -100,15 +130,78 @@ class OpenRouterModelMetadataDirectory extends AbstractOpenAiCompatibleModelMeta
                         $modelName = (string) $modelData['id'];
                     }
 
+                    $isImageGeneration = self::supportsImageGeneration($modelData);
+                    if ($isImageGeneration) {
+                        $capabilities = [CapabilityEnum::imageGeneration()];
+                        $options      = $imageOptions;
+                    } else {
+                        $capabilities = $textGenCapabilities;
+                        $options      = $textGenOptions;
+                    }
+
                     return new ModelMetadata(
                         $modelData['id'],
                         $modelName,
-                        $textGenCapabilities,
-                        $textGenOptions
+                        $capabilities,
+                        $options
                     );
                 },
                 (array) $responseData['data']
             )
         );
+    }
+
+    /**
+     * Detect whether an OpenRouter model supports image generation.
+     *
+     * OpenRouter can expose modalities in multiple shapes depending on the model:
+     * - output_modalities (top-level)
+     * - architecture.output_modalities
+     * - architecture.modality (e.g. "text->image", "text+image->image")
+     *
+     * @since 0.1.0
+     *
+     * @param OpenRouterModelData $modelData Raw model data from OpenRouter /models.
+     */
+    private static function supportsImageGeneration(array $modelData): bool
+    {
+        $modalities = [];
+
+        if (isset($modelData['output_modalities']) && is_array($modelData['output_modalities'])) {
+            foreach ($modelData['output_modalities'] as $modality) {
+                if (is_string($modality)) {
+                    $modalities[] = strtolower($modality);
+                }
+            }
+        }
+
+        $architecture = $modelData['architecture'] ?? null;
+        if (is_array($architecture)) {
+            if (isset($architecture['output_modalities']) && is_array($architecture['output_modalities'])) {
+                foreach ($architecture['output_modalities'] as $modality) {
+                    if (is_string($modality)) {
+                        $modalities[] = strtolower($modality);
+                    }
+                }
+            }
+
+            if (!empty($architecture['modality']) && is_string($architecture['modality'])) {
+                $modalityString = strtolower($architecture['modality']);
+
+                // OpenRouter uses formats like "text+image->text" or "text->text+image".
+                $parts = explode('->', $modalityString, 2);
+                if (count($parts) === 2) {
+                    $outputSide = $parts[1];
+                    if (strpos($outputSide, 'image') !== false) {
+                        return true;
+                    }
+                } elseif (strpos($modalityString, 'image') !== false) {
+                    // Fallback for any legacy/non-standard modality string.
+                    return true;
+                }
+            }
+        }
+
+        return in_array('image', $modalities, true);
     }
 }
