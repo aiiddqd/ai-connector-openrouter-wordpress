@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AI Connector for OpenRouter
  * Plugin URI:  https://github.com/aiiddqd/ai-connector-openrouter-wordpress
- * Description: Connects WordPress to the OpenRouter AI API.
+ * Description: AI Provider for OpenRouter for the WordPress AI Client.
  * Author:      aiiddqd
  * Author URI:  https://github.com/aiiddqd
  * License:     GPL-2.0-or-later
