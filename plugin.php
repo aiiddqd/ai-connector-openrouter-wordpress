@@ -35,6 +35,8 @@ final class Plugin {
 	}
 
 	public function run(): void {
+        //add autoload.php
+        require_once plugin_dir_path( __FILE__ ) . 'includes/autoload.php';
 		add_action( 'wp_connectors_init', array( $this, 'register_connector' ) );
 	}
 
