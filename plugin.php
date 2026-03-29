@@ -10,8 +10,7 @@
  * Text Domain: ai-connector-openrouter-wordpress
  * GitHub Plugin URI: aiiddqd/ai-connector-openrouter-wordpress
  * Primary Branch: main
- * Requires Plugins: ai
- * Requires at least: 6.9
+ * Requires at least: 7.0
  * Requires PHP: 7.4
  * Version:     0.2.260329
  */
