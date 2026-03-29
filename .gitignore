@@ -1,5 +1,6 @@
 # WordPress for local development
 wp/
+ai/
 
 # Composer
 vendor/
@@ -30,3 +31,4 @@ build/
 
 # Logs
 *.log
+AGENTS.md
