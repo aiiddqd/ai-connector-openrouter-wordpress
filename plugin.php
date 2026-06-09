@@ -12,7 +12,7 @@
  * Primary Branch: main
  * Requires at least: 7.0
  * Requires PHP: 7.4
- * Version:     0.2.260329
+ * Version:     0.2.260529
  */
 
 
