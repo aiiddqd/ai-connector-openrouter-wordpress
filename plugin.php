@@ -49,6 +49,7 @@ final class Plugin
 		add_action('init', array($this, 'register_provider'), 1);
 		add_action('wp_connectors_init', array($this, 'register_connector'));
 		add_filter('wpai_preferred_image_models', array($this, 'register_image_model_preferences'));
+		add_action('wp_loaded', array($this, 'handle_ai_test'));
 	}
 
 	public function register_provider(): void
@@ -113,6 +114,115 @@ final class Plugin
 		);
 
 		return array_merge($models, $openrouter_models);
+	}
+
+	/**
+	 * Debug endpoint: ?ai_test=1 — show AI status; ?ai_test=prompt&q=Hello — generate text.
+	 *
+	 * @since 0.2.260529
+	 */
+	public function handle_ai_test(): void
+	{
+
+		if (!is_admin()) {
+			return;
+		}
+
+		if (! isset($_GET['ai_test'])) {
+			return;
+		}
+
+		// Only allow admins.
+		if (! current_user_can('manage_options')) {
+			wp_die('Unauthorized.');
+		}
+
+		header('Content-Type: text/plain; charset=utf-8');
+
+		// If a prompt is requested, run text generation.
+		if ('prompt' === $_GET['ai_test'] && ! empty($_GET['q'])) {
+			if (! wp_supports_ai()) {
+				echo "ERROR: wp_supports_ai() returned false.\n";
+				exit;
+			}
+
+			$prompt = sanitize_text_field(wp_unslash($_GET['q']));
+
+			// Build with model preference — DeepSeek V4 Pro first, then fallbacks.
+			$builder = wp_ai_client_prompt($prompt)
+				->using_model_preference(
+					'deepseek/deepseek-v4-pro',
+					'anthropic/claude-haiku-4-5',
+					'google/gemini-2.5-flash',
+					'openai/gpt-4o-mini'
+				);
+
+			echo "=== Generating text ===\n";
+			echo "Prompt: " . $prompt . "\n\n";
+
+			try {
+				$result = $builder->generate_text_result();
+				echo "Result: " . $result->toText() . "\n\n";
+
+				// Show which model was actually used.
+				$modelMeta = $result->getModelMetadata();
+				$providerMeta = $result->getProviderMetadata();
+				echo "=== Model used ===\n";
+				printf("  Provider: %s (%s)\n", $providerMeta->getName(), $providerMeta->getId());
+				printf("  Model:    %s (%s)\n", $modelMeta->getName(), $modelMeta->getId());
+
+				$usage = $result->getTokenUsage();
+				if ($usage) {
+					printf("  Tokens:   %d in / %d out / %d total\n",
+						$usage->getPromptTokens(),
+						$usage->getCompletionTokens(),
+						$usage->getTotalTokens()
+					);
+				}
+			} catch (\Throwable $e) {
+				echo "ERROR: " . $e->getMessage() . "\n";
+			}
+			echo "\n=== Done ===\n";
+			exit;
+		}
+
+		// Default: dump AI status.
+		echo "=== AI Status ===\n";
+		echo "wp_supports_ai(): " . (wp_supports_ai() ? 'true' : 'false') . "\n";
+		echo "AiClient class: " . (class_exists(AiClient::class) ? 'exists' : 'missing') . "\n\n";
+
+		echo "=== Providers ===\n";
+		$registry = AiClient::defaultRegistry();
+		foreach (['openrouter', 'anthropic', 'google', 'openai'] as $id) {
+			printf("  %s: %s\n", $id, $registry->hasProvider($id) ? 'registered' : 'not registered');
+		}
+		echo "\n";
+
+		// Preferred models from filter.
+		$preferred_text = apply_filters('wpai_preferred_text_models', []);
+		echo "=== wpai_preferred_text_models ===\n";
+		if (empty($preferred_text)) {
+			echo "  (filter returned empty — using hardcoded defaults in AI plugin)\n";
+		} else {
+			foreach ($preferred_text as $m) {
+				printf("  %s/%s\n", $m[0], $m[1]);
+			}
+		}
+
+		// List models from OpenRouter provider using static methods.
+		echo "\n=== OpenRouter models (first 10) ===\n";
+		try {
+			$className = $registry->getProviderClassName('openrouter');
+			$all = $className::modelMetadataDirectory()->listModelMetadata();
+			foreach (array_slice($all, 0, 10) as $model) {
+				printf("  %s (%s)\n", $model->getId(), $model->getName());
+			}
+			echo "  ... total: " . count($all) . " models\n";
+		} catch (\Throwable $e) {
+			echo "  Error listing models: " . $e->getMessage() . "\n";
+		}
+		echo "\nUse ?ai_test=prompt&q=Hello to test text generation.\n";
+		exit;
 	}
 
 	public function register_connector(\WP_Connector_Registry $registry): void
